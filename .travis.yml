@@ -1,0 +1,9 @@
+sudo: true
+language: ruby
+rvm:
+  - 2.5.1
+before_install: gem install bundler -v 1.16.3
+install:
+  - bundle install --path vendor/bundle
+script:
+  - make clean all
