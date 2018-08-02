@@ -43,7 +43,24 @@ This document was prepared by the Ribose Committee _{technical-committee}_.
 
 == Introduction
 
+=== Security requirements:
 
+Assumptions
+
+. user authentication implemented using username + password
+
+General
+
+. CSRF protection during pre-login (unauthenticated) & post-login (authenticated)
+. Sessions with expiration (e.g. 7 days)
+. Client: if needed, can store whatever tokens in cookie / local storage
+. Server: if needed, can store whatever tokens in DB
+
+Technical
+
+. "forward validity" of CSRF token
+.. Getting hold of an old CSRF token would have minimal impact on the attacker's ability to forge subsequent requests
+.
 
 == Scope
 
@@ -299,6 +316,31 @@ where 'authenticated OTP seed', 'client time block' = Decrypt(retrieved authenti
 
 * Q1: So that means the security of this scheme hinges on that of the 'authenticated OTP seed'?  Since once the seed is compromised, there is no way to tell if requests are forged (up to the expiration datetime).
 * A1:
+
+==== Back to Unauth -> auth
+
+What if we use the generated token as seed for next token?
+
+3. client -> server: Payload + user id + Encrypted Token = Encrypt(authenticated OTP seed, client time block)
+4. server stores 'Encrypted Token' + 'client time block'  in DB for 'user id'
+and validate(...)
+
+- server stores 'client time block' along with 'Encrypted Token' so that in subsequent resquests, if there's an out-of-order request that is still within certain valid threshold, the server will know to not overwrite its stored encrypted token (by comparing the two 'client time blocks').
+
+and then later:
+
+2. server -> client: Encrypted Token
+3. client -> server: Payload + user id + Encrypted Token 2 = Encrypt(Encrypted Token, client time block)
+
+4. server stores 'Encrypted Token2' + 'client time block' in DB for 'user id'
+then validate:
+	if (authenticated OTP seed == retrieved authenticated OTP seed)
+	then if NotTooFarInTimeBlocks?(client time block, server time block) &&
+		SeedIsNotExpired?(authenticated OTP seed, server time block)
+	else false
+
+where 'retrieved authenticated OTP seed' = DB.getOTPSeed(user id)
+where 'authenticated OTP seed', 'client time block' = Decrypt(retrieved authenticated OTP seed, Encrypted Token)
 
 === auth'd -> next request (not yet expired, within same server time block)
 
