@@ -193,6 +193,8 @@ client -> server: server-client OTP token, client nonce
 
 * Q1: If I as a client has two tokens, A and B, where expiration(A) < expiration(B).  Why should I bother to use B instead of A, where the expiration is 24 hours (or even 7 days)?
 * A1: It's really up to the client.  If client keeps using A, it risks expiration sooner than entitled.
+* Q2: How does this scheme deal with the issue solved by per-request changing of tokens?
+* A2: 
 
 === auth'd -> next request (expired)
 
