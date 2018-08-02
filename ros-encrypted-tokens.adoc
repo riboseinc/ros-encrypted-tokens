@@ -101,7 +101,7 @@ stem:[BCD(K, m)]::
 
 * + : can be a structured concatenation, e.g. merging of a JSON hash
 
-== token generation
+=== token generation
 
 server time block = n-second blocks (e.g. 00:00 to 00:05, 00:05 to 00:10, etc)
 
@@ -110,7 +110,7 @@ server time block = n-second blocks (e.g. 00:00 to 00:05, 00:05 to 00:10, etc)
 unauthenticated token = Encrypt(server secret, client nonce + server time block)
 
 * server secret: only the server can reliably generate valid tokens
-* client nonce: uniqueness? probably only needs to be unique within a user's client pool (TBD). Only the client needs to store it.
+* client nonce: uniqueness? probably only needs to be unique within a user's client pool (TBD). Only the client needs to store it. Must be a cryptographically strong pseudo-random value to prevent brute-force attacks on 'server secret'.
 * server time block: for server to determine whether token has expired
 
 * expires when (24 hrs / 5 seconds) blocks have passed.
@@ -146,17 +146,21 @@ TODO: verify usefulness for pre-login CSRF?
 
 client -> server: client nonce (????)
 server -> client: unauthenticated token
+client -> server: Payload + unauthenticated token
 
 === Unauthenticated -> authenticated
 
 client -> server: (username + password / API token), client nonce
-server -> client: authenticated token
+server -> client: authenticated token (optional: with server-controlled expiration, e.g, via "Remember me")
+client -> server: Payload + authenticated token
 
 DONE
 
 === auth'd -> next request (not yet expired, within same server time block)
 
 no new token needed
+
+client -> server: Payload + authenticated token
 
 DONE
 
@@ -189,15 +193,125 @@ client -> server: server-client OTP token, client nonce
 
 * client nonce: can be old / new. non-consequential.
 
+(^ irrelevant)
+
+=== auth'd -> next request (expired)
+
+TODO:
+
 = Questions
 
 * Q1: If I as a client has two tokens, A and B, where expiration(A) < expiration(B).  Why should I bother to use B instead of A, where the expiration is 24 hours (or even 7 days)?
 * A1: It's really up to the client.  If client keeps using A, it risks expiration sooner than entitled.
-* Q2: How does this scheme deal with the issue solved by per-request changing of tokens?
-* A2: 
+* Q2: How does this scheme deal with the issue solved by per-request changing of tokens (e.g. Devise Token Auth)?
+* A2: The issue that would occur if tokens are kept the same throughout a session, is that if one token got compromised, the attacker would be able to forge subsequent requests.
+Schemes employed by Devise Token Auth solves this by changing tokens per request.
+This proposed scheme:
 
+** non-expired && non-fresh
+
+[not expired; current time exceeds token's 'server time block']
+
+client -> server: authenticated token
+server -> client: Encrypt(server secret, user id + client nonce + new server time block)
+
+* Q3: If we close our tabs in browser. The token stored by client is the latest available to client.  Then we open a new tab, but within the token's expiry.
+* A3: 1) Do whatever is done in A2 (non-expired && non-fresh).
+* Q4: So that means token A in Q1 can be used over and over until expiry?
+* A4: Yes and it needs to be fixed. TODO: TBD
+
+We now use OTP.
+
+== OTP example flow
+
+=== token generation
+
+server time block = n-second blocks (e.g. 00:00 to 00:05, 00:05 to 00:10, etc)
+
+* reason for blocks: so as to reduce the possible space of valid tokens from nanosecond-(?)blocks to e.g. 5-second blocks
+
+unauthenticated OTP seed = Encrypt(server secret, client nonce + server time block)
+
+(^ TODO: verify usefulness)
+
+* server secret: only the server can reliably generate valid tokens
+* client nonce: uniqueness? probably only needs to be unique within a user's client pool (TBD). Only the client needs to store it. Must be a cryptographically strong pseudo-random value to prevent brute-force attacks on 'server secret'.
+* server time block: for server to determine whether token has expired
+
+* expires when (24 hrs / 5 seconds) blocks have passed.
+
+authenticated OTP seed = Encrypt(server secret, user id + client nonce + server time block)
+
+* user id: something for the server user database to identify the user with
+
+authenticated OTP seed with server-controlled expiration = Encrypt(server secret, user id + client nonce + server time block, number of remaining valid server time blocks)
+
+(^ TODO: verify usefulness)
+
+* number of valid server time blocks:
+** Puts the control of "remember me" back to server
+** Server sets it
+** whenever Server receives such a token, Server needs to calculate a new 'number of remaining valid server time blocks' so token would really expire after e.g. 7 days
+
+server secret = ...
+
+=== Unauthenticated -> unauthenticated
+
+TODO:
+
+// client -> server: client nonce (????)
+// server -> client: unauthenticated token
+
+=== Unauthenticated -> authenticated
+
+[given: client & server times are synced]
+
+1. client -> server: (username + password / API token), client nonce
+2. server -> client: authenticated OTP seed
+3. client -> server: Payload + OTP token = GenerateOTP(authenticated OTP seed, client time block)
+4. server: validate?:
+	if f(OTP token, server time block, retrieved authenticated OTP seed)
+	then true
+	else false
+
+where 'retrieved authenticated OTP seed' = DB.getOTPSeed(user id)
+
+but where can 'user id' be retrieved by server?
+
+What if we use encrypted token:
+
+[assume: client already knows its user id???]
+3. client -> server: Payload + user id + Encrypted Token = Encrypt(authenticated OTP seed, client time block)
+
+- Question: safe to assume 'user id' can't be forged?
+- Answer: Yes. Server can compare the 'authenticated OTP seed' of the claimed 'user id'.
+
+4. server: validate?:
+	if (authenticated OTP seed == retrieved authenticated OTP seed)
+	then if NotTooFarInTimeBlocks?(client time block, server time block) &&
+		SeedIsNotExpired?(authenticated OTP seed, server time block)
+	else false
+
+where 'retrieved authenticated OTP seed' = DB.getOTPSeed(user id)
+where 'authenticated OTP seed', 'client time block' = Decrypt(retrieved authenticated OTP seed, Encrypted Token)
+
+==== Questions
+
+* Q1: So that means the security of this scheme hinges on that of the 'authenticated OTP seed'?  Since once the seed is compromised, there is no way to tell if requests are forged (up to the expiration datetime).
+* A1:
+
+=== auth'd -> next request (not yet expired, within same server time block)
+
+// no new token needed
+
+
+
+=== auth'd -> next request (not yet expired, not within same server time block)
+
+TODO:
 === auth'd -> next request (expired)
 
+TODO:
 
 [bibliography]
 == Bibliography
