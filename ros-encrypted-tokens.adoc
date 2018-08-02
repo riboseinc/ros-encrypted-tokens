@@ -110,8 +110,8 @@ server time block = n-second blocks (e.g. 00:00 to 00:05, 00:05 to 00:10, etc)
 unauthenticated token = Encrypt(server secret, client nonce + server time block)
 
 * server secret: only the server can reliably generate valid tokens
-* client nonce: uniqueness? probably only needs to be unique within a user's client pool (TBD)
-* server time: to determine expiration
+* client nonce: uniqueness? probably only needs to be unique within a user's client pool (TBD). Only the client needs to store it.
+* server time block: for server to determine whether token has expired
 
 * expires when (24 hrs / 5 seconds) blocks have passed.
 
@@ -119,11 +119,22 @@ authenticated token = Encrypt(server secret, user id + client nonce + server tim
 
 * user id: something for the server user database to identify the user with
 
+authenticated token with server-controlled expiration = Encrypt(server secret, user id + client nonce + server time block, number of remaining valid server time blocks)
+
+* number of valid server time blocks:
+** Puts the control of "remember me" back to server
+** Server sets it
+** whenever Server receives such a token, Server needs to calculate a new 'number of remaining valid server time blocks' so token would really expire after e.g. 7 days
+
 server secret = ...
 
 === Expiration
 
 E.g. 24 hours
+
+But more usefully, 7 days (mimicking the remember-me function).
+
+* How would this affect collision space?
 
 === 
 
@@ -151,8 +162,16 @@ DONE
 
 === auth'd -> next request (not yet expired, not within same server time block)
 
+==== Scenario
+
+* My token has an expiration time of 24 hours.
+* I present my token to server at the 23rd hour.
+* The server now needs to generate a new token with a further 24-hour expiration time for me to use in my next request.
+
 new token : generated with ...
 OTP token
+
+* Why OTP now?
 
 // server-client OTP seed = Encrypt??(server master secret, server time block + user id)
 server-client OTP token = Encrypt??(server master secret, server time block + user id)
@@ -169,6 +188,11 @@ server -> client: server-client OTP token
 client -> server: server-client OTP token, client nonce
 
 * client nonce: can be old / new. non-consequential.
+
+= Questions
+
+* Q1: If I as a client has two tokens, A and B, where expiration(A) < expiration(B).  Why should I bother to use B instead of A, where the expiration is 24 hours (or even 7 days)?
+* A1: It's really up to the client.  If client keeps using A, it risks expiration sooner than entitled.
 
 === auth'd -> next request (expired)
 
