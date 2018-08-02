@@ -97,6 +97,81 @@ stem:[BCD(K, m)]::
   stem:[m] using the key stem:[K].
 
 
+== Example flow
+
+* + : can be a structured concatenation, e.g. merging of a JSON hash
+
+== token generation
+
+server time block = n-second blocks (e.g. 00:00 to 00:05, 00:05 to 00:10, etc)
+
+* reason for blocks: so as to reduce the possible space of valid tokens from nanosecond-(?)blocks to e.g. 5-second blocks
+
+unauthenticated token = Encrypt(server secret, client nonce + server time block)
+
+* server secret: only the server can reliably generate valid tokens
+* client nonce: uniqueness? probably only needs to be unique within a user's client pool (TBD)
+* server time: to determine expiration
+
+* expires when (24 hrs / 5 seconds) blocks have passed.
+
+authenticated token = Encrypt(server secret, user id + client nonce + server time block)
+
+* user id: something for the server user database to identify the user with
+
+server secret = ...
+
+=== Expiration
+
+E.g. 24 hours
+
+=== 
+
+but every time client sends a request to server, server 
+
+=== Unauthenticated -> unauthenticated
+
+TODO: verify usefulness for pre-login CSRF?
+
+client -> server: client nonce (????)
+server -> client: unauthenticated token
+
+=== Unauthenticated -> authenticated
+
+client -> server: (username + password / API token), client nonce
+server -> client: authenticated token
+
+DONE
+
+=== auth'd -> next request (not yet expired, within same server time block)
+
+no new token needed
+
+DONE
+
+=== auth'd -> next request (not yet expired, not within same server time block)
+
+new token : generated with ...
+OTP token
+
+// server-client OTP seed = Encrypt??(server master secret, server time block + user id)
+server-client OTP token = Encrypt??(server master secret, server time block + user id)
+
+* server master secret: 1) So that only server can reliably generate OTP tokens. 2) tends not to change much.
+* user id : so that OTP seed is specific to each user
+* server time block: the natural input for OTP
+// * client time block: the natural input for OTP. Client needs to sync time with server (TBI)
+
+// server -> client: server-client OTP seed
+// client -> server: Encrypt(???)(server-client OTP seed, client time block)
+authenticated token 2 = Encrypt(server secret, user id + client nonce + server-client OTP token + server time block)
+server -> client: server-client OTP token
+client -> server: server-client OTP token, client nonce
+
+* client nonce: can be old / new. non-consequential.
+
+=== auth'd -> next request (expired)
+
 
 [bibliography]
 == Bibliography
