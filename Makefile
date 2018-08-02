@@ -63,7 +63,7 @@ open: open-html
 clean:
 	rm -f $(OUT_FILES) Gemfile Gemfile.lock package.json
 
-bundle:	Gemfile Gemfile.lock
+bundle:	# Gemfile Gemfile.lock
 	bundle
 
 # Gemfile Gemfile.lock package.json:
