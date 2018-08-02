@@ -322,17 +322,19 @@ where 'authenticated OTP seed', 'client time block' = Decrypt(retrieved authenti
 What if we use the generated token as seed for next token?
 
 3. client -> server: Payload + user id + Encrypted Token = Encrypt(authenticated OTP seed, client time block)
-4. server stores 'Encrypted Token' + 'client time block'  in DB for 'user id'
+4. server stores 'authenticated OTP seed' + 'Encrypted Token' + 'client time block'  in DB for 'user id'
 and validate(...)
 
 - server stores 'client time block' along with 'Encrypted Token' so that in subsequent resquests, if there's an out-of-order request that is still within certain valid threshold, the server will know to not overwrite its stored encrypted token (by comparing the two 'client time blocks').
+
+=== auth'd -> next request (not yet expired; regardless of server time block)
 
 and then later:
 
 2. server -> client: Encrypted Token
 3. client -> server: Payload + user id + Encrypted Token 2 = Encrypt(Encrypted Token, client time block)
 
-4. server stores 'Encrypted Token2' + 'client time block' in DB for 'user id'
+4. server stores 'authenticated OTP seed' + 'Encrypted Token2' + 'client time block' in DB for 'user id'
 then validate:
 	if (authenticated OTP seed == retrieved authenticated OTP seed)
 	then if NotTooFarInTimeBlocks?(client time block, server time block) &&
@@ -342,18 +344,15 @@ then validate:
 where 'retrieved authenticated OTP seed' = DB.getOTPSeed(user id)
 where 'authenticated OTP seed', 'client time block' = Decrypt(retrieved authenticated OTP seed, Encrypted Token)
 
-=== auth'd -> next request (not yet expired, within same server time block)
-
-// no new token needed
-
-
-
-=== auth'd -> next request (not yet expired, not within same server time block)
-
-TODO:
 === auth'd -> next request (expired)
 
-TODO:
+* "Expired" means the expiration datetime encoded inside 'authenticated OTP seed' is expired...
+
+	SeedIsNotExpired?(authenticated OTP seed, server time block)
+
+* This means the seed needs refreshing? or the user needs to re-authenticate?
+
+The user needs to re-authenticate (server returns 401).
 
 [bibliography]
 == Bibliography
