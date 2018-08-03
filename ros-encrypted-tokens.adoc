@@ -43,6 +43,10 @@ This document was prepared by the Ribose Committee _{technical-committee}_.
 
 == Introduction
 
+=== User requirements:
+
+. batch requests should not have degraded performance
+
 === Security requirements:
 
 Assumptions
@@ -60,7 +64,36 @@ Technical
 
 . "forward validity" of CSRF token
 .. Getting hold of an old CSRF token would have minimal impact on the attacker's ability to forge subsequent requests
-.
+
+TODO:
+- define: user, client, session, token, validity
+: from ietf / iso source (prefer iso?)
+- define: time block: in 8601, has timescale/time interval concept. link?  
+  need to define/include begin-end?
+- specify time granularity
+- specify how to sync time between client & server?
+	- 1) ask client to enter the next otp
+	  2) if opt valid, store it in DB along with User / client
+	  3) calculate time block difference between stored otp and current server time block.
+	  4) store this time block difference in DB along with User / client
+	  5) Next time client presents an otp, server can use this time block difference as a window.
+	- need to assume that the client doesn't have a purposefully set wrong 
+	  time (e.g. several years apart)?
+	  - Maybe not. We can just set a small enough window e.g. 10 days in which to 
+	    search.
+- specify what to do when times drift: irrelevant.
+- mark as concern: certain ranges of values (params) might cause problems
+  e.g. validity time window, expiry
+  More like UX problems.  Obviously not too short e.g. 1 sec.
+- define: diff kinds of expiry
+  - A: OTP seed expiration.
+- How to handle batch requests?
+- flow diagrams for every single flow
+- specify how to encrypt
+  e.g. fixed-length vs var-length.
+  e.g. ffxcodec has more variable length ciphertext
+- low vs high latency (e.g. LAN vs satellite)
+- 
 
 == Scope
 
@@ -159,11 +192,12 @@ but every time client sends a request to server, server
 
 === Unauthenticated -> unauthenticated
 
-TODO: verify usefulness for pre-login CSRF?
-
-client -> server: client nonce (????)
-server -> client: unauthenticated token
-client -> server: Payload + unauthenticated token
+Not useful.
+// verify usefulness for pre-login CSRF?
+//
+// client -> server: client nonce (????)
+// server -> client: unauthenticated token
+// client -> server: Payload + unauthenticated token
 
 === Unauthenticated -> authenticated
 
@@ -247,9 +281,6 @@ server time block = n-second blocks (e.g. 00:00 to 00:05, 00:05 to 00:10, etc)
 
 * reason for blocks: so as to reduce the possible space of valid tokens from nanosecond-(?)blocks to e.g. 5-second blocks
 
-unauthenticated OTP seed = Encrypt(server secret, client nonce + server time block)
-
-(^ TODO: verify usefulness)
 
 * server secret: only the server can reliably generate valid tokens
 * client nonce: uniqueness? probably only needs to be unique within a user's client pool (TBD). Only the client needs to store it. Must be a cryptographically strong pseudo-random value to prevent brute-force attacks on 'server secret'.
@@ -274,10 +305,7 @@ server secret = ...
 
 === Unauthenticated -> unauthenticated
 
-TODO:
-
-// client -> server: client nonce (????)
-// server -> client: unauthenticated token
+Most likely irrelevant?
 
 === Unauthenticated -> authenticated
 
@@ -353,6 +381,69 @@ where 'authenticated OTP seed', 'client time block' = Decrypt(retrieved authenti
 * This means the seed needs refreshing? or the user needs to re-authenticate?
 
 The user needs to re-authenticate (server returns 401).
+
+^ The above scheme requires client time block syncing.
+
+==== More OTP
+
+*  The following scheme makes syncing of client time block unnecessary.
+*  It also forces the client to swap out its old keys with the latest one as the server knows that only one token is valid at a time and it happens to be the latest one.
+
+2. server -> client: Encrypted Token C = Encrypt(authenticated OTP seed, server time block)
+server stores 'authenticated OTP seed' + 'Encrypted Token C' in DB for 'user id'
+3. client -> server: Payload + user id + Encrypted Token C
+4. 
+server validate:
+	if IsGivenTimeBlockInCurrentTimeBlock?(time block)
+		respond with Encrypted Token C
+	else
+		respond with Encrypted Token C 2 = Encrypt(retrieved authenticated OTP seed, current server time block)
+		server stores 'authenticated OTP seed' + 'Encrypted Token C 2' in DB for 'user id'
+
+where 'time block' = Decrypt(retrieved authenticated OTP seed, Encrypted Token C)
+where 'retrieved authenticated OTP seed' = DB.getOTPSeed(user id)
+
+*  or... use current token as key input to Encrypt?
+
+2. server -> client: Encrypted Token C = Encrypt(authenticated OTP seed, server time block)
+server stores 'authenticated OTP seed' + 'Encrypted Token C' in DB for 'user id'
+3. client -> server: Payload + user id + Encrypted Token C
+4. 
+server validate:
+	if Hash(Received Token) != DB.getStoredHashedToken (== Hash(Encrypted Token C))
+		respond with 401
+	if IsGivenTimeBlockInCurrentTimeBlock?(time block)
+		respond with Encrypted Token C
+	else
+		val token = Encrypted Token C
+		respond with Encrypted Token C 2 = Encrypt(Encrypted Token C, current server time block + random value)
+		server stores 'authenticated OTP seed' + 'Encrypted Token C' + 'Hash(Encrypted Token C 2)' in DB for 'user id'
+
+where 'time block' = Decrypt(Current Token, Encrypted Token C)
+where 'Current Token' = DB.getStoredToken(user id) == authenticated OTP seed
+
+* meaning at the start, DB would store 'authenticated OTP seed' + 'authenticated OTP seed' + 'Hash(Encrypted Token C)' in DB for 'user id'
+
+and then:
+
+3. client -> server: Payload + user id + Encrypted Token C 2
+4. server validate:
+	if Hash(Received Token) != DB.getStoredHashedToken (== Hash(Encrypted Token C 2))
+		respond with 401
+	if IsGivenTimeBlockInCurrentTimeBlock?(time block)
+		respond with Encrypted Token C 2
+	else
+		respond with Encrypted Token C 3 = Encrypt(Encrypted Token C 2, current server time block + random value)
+		server stores 'authenticated OTP seed' + 'Encrypted Token C 2' + 'Encrypted Token C 3' in DB for 'user id'
+
+where 'time block' = Decrypt(Current Token, Encrypted Token C 2)
+where 'Current Token' = DB.getStoredToken(user id) == Encrypted Token C
+
+* meaning at the start, DB would store 'authenticated OTP seed' + 'Encrypted Token C' + 'Hash(Encrypted Token C 2)' in DB for 'user id'
+* random value: to prevent attacker from generating new valid tokens from old tokens (e.g. if stolen from a DB)
+* Hash(Current Encrypted Token): to prevent attacker from directly using it to impersonate users
+
+TODO: Need to make it handle batch requests.  Add some kind of window? concerns for concurrent DB access to remove the same old token?
 
 [bibliography]
 == Bibliography
