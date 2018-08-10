@@ -45,24 +45,25 @@ This document was prepared by the Ribose Committee _{technical-committee}_.
 
 === User requirements:
 
-. batch requests should not have degraded performance
+. U1: batch requests should not have degraded performance
+. U2: the same scheme should work in both browser & native mobile app (i.e. without "session")
 
 === Security requirements:
 
 Assumptions
 
-. user authentication implemented using username + password
+. A1: user authentication implemented using username + password
 
 General
 
-. CSRF protection during pre-login (unauthenticated) & post-login (authenticated)
-. Sessions with expiration (e.g. 7 days)
-. Client: if needed, can store whatever tokens in cookie / local storage
-. Server: if needed, can store whatever tokens in DB
+. S1: CSRF protection during pre-login (unauthenticated) & post-login (authenticated)
+. S2: Sessions with expiration (e.g. 7 days)
+. S3: Client: if needed, can store whatever tokens in cookie / local storage
+. S4: Server: if needed, can store whatever tokens in DB
 
 Technical
 
-. "forward validity" of CSRF token
+. S5: "forward validity" of CSRF token
 .. Getting hold of an old CSRF token would have minimal impact on the attacker's ability to forge subsequent requests
 
 TODO:
@@ -444,6 +445,101 @@ where 'Current Token' = DB.getStoredToken(user id) == Encrypted Token C
 * Hash(Current Encrypted Token): to prevent attacker from directly using it to impersonate users
 
 TODO: Need to make it handle batch requests.  Add some kind of window? concerns for concurrent DB access to remove the same old token?
+
+== Use of cookie
+
+=== HttpOnly
+
+* assumptions: set to 'true'
+
+Pros
+
+* JS cannot read its values.
+* Together with headers, our own JS can have access to whatever value is needed.
+
+Cons
+
+* Headers need to be set in addition to cookie.
+
+=== Secure
+
+TODO
+
+* assumptions:
+
+Pros
+
+
+Cons
+
+
+== Scenarios
+
+=== 1
+
+* Attacker site
+* Assumptions:
+** All encrypted tokens are stored only in browser tab's JS variables, not in cookie / local storage
+
+Pros
+
+* Attacker site has no way to access the tokens, protected by browser's own containing mechanism
+
+Cons
+
+* User does not have the ability to use multiple browser tabs with a single authentication
+* User would immediately lose the existing 'session' once the current browser tab is closed.
+
+=== 2
+
+* Attacker site
+* Assumptions:
+** 1) cookie: `HttpOnly` set to `true`
+** 2) All encrypted tokens are stored in browser cookie
+** 3) No cross-origin checking by browser
+** 4) Browser honours `HttpOnly` flag
+** 5) Cookie values are also set in response header
+** 6) Cookie values (from previous response header) are also set in request header
+** 7) Server only accepts requests with the cookie and header both set with the same value
+
+Pros
+
+* Attacker JS cannot access cookie values (by 1, 2, 4) even with 3.
+*
+
+Cons
+
+* New browser tab won't be able to submit cookie value in request header (by 7) 
+  thus needs to re-authenticate (but with stale value still in cookie?)
+
+=== 3
+
+* Attacker site
+* Assumptions:
+** 1) cookie: `HttpOnly` set to `true`
+** 2) All encrypted tokens are stored in browser local storage
+** 3) No cross-origin checking of requests by browser
+** 4) Attacker has no access to the app's local storage (as attacker site is in a different origin)
+** 5) Token to be set in request header
+** 6) Token can be set in hidden <input> in a form if 5) cannot be achieved
+** 7) Server only accepts requests with token in header or from hidden <input>
+
+Pros
+
+* 
+
+Cons
+
+* 
+
+=== 4
+
+* Assumptions:
+** 1) cross-origin checking is disabled
+
+* Q: Are all login forms now vulnerable to pre-login CSRF?
+* A: Yes.
+
 
 [bibliography]
 == Bibliography
