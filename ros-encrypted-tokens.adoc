@@ -18,6 +18,18 @@
 
 .Foreword
 
+[plantuml]
+....
+@startuml
+!include ../models/style.uml.inc
+Alice -> Bob: Authentication Request
+Bob --> Alice: Authentication Response
+
+Alice -> Bob: Another authentication Request
+Alice <-- Bob: another authentication Response
+@enduml
+....
+
 Ribose is the asymmetric security company.
 
 Ribose Group Inc. ("Ribose") is global developer of _asymmetric security_ technologies across user-centric systems and applications.
