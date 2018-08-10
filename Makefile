@@ -1,23 +1,22 @@
+DOCTYPE  := rsd
+
 MAIN_SRC := $(wildcard ros-*.adoc)
 DOC      := $(patsubst %.adoc,%.doc,$(MAIN_SRC))
 XML      := $(patsubst %.adoc,%.xml,$(MAIN_SRC))
 HTML     := $(patsubst %.adoc,%.html,$(MAIN_SRC))
-DOCTYPE  := rsd
 
 ALL_ADOC_SRC := *.adoc **/*.adoc
 SRC_doc      := $(ALL_ADOC_SRC)
 SRC_xml      := $(ALL_ADOC_SRC)
 SRC_html     := $(ALL_ADOC_SRC)
 
-MAIN_UML_SRC := model.uml
-XMI          := $(patsubst %.uml,%.xmi,$(MAIN_UML_SRC))
-PNG          := $(patsubst %.uml,%.png,$(MAIN_UML_SRC))
-SVG          := $(patsubst %.uml,%.svg,$(MAIN_UML_SRC))
-
-ALL_UML_SRC := *.uml
+ALL_UML_SRC := $(wildcard models/*.uml)
 SRC_xmi     := $(ALL_UML_SRC)
 SRC_png     := $(ALL_UML_SRC)
 SRC_svg     := $(ALL_UML_SRC)
+XMI         := $(patsubst %.uml,%.xmi,$(ALL_UML_SRC))
+PNG         := $(patsubst %.uml,%.png,$(ALL_UML_SRC))
+SVG         := $(patsubst %.uml,%.svg,$(ALL_UML_SRC))
 
 ALL_SRC := $(ALL_ADOC_SRC) $(ALL_UML_SRC)
 
@@ -29,6 +28,9 @@ OUT_FILES  := $(foreach F,$(_OUT_FILES),$($F))
 SHELL := /bin/bash
 
 all: $(OUT_FILES)
+
+%.svg: %.uml
+	plantuml -tsvg $^
 
 %.png: %.uml
 	plantuml $^
@@ -98,7 +100,7 @@ endef
 
 $(foreach FORMAT,$(FORMATS),$(eval $(WATCH_TASKS)))
 
-serve: $(NODE_BIN_DIR)/live-server revealjs-css reveal.js images
+serve: $(NODE_BIN_DIR)/live-server
 	export PORT=$${PORT:-8123} ; \
 	port=$${PORT} ; \
 	for html in $(HTML); do \
