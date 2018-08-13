@@ -18,15 +18,18 @@
 
 .Foreword
 
+[[figure-relationship-process]]
+.Relationship of technical vulnerability assessments to ISMS and vulnerability management
 [plantuml]
 ....
 @startuml
 !include ../models/style.uml.inc
-Alice -> Bob: Authentication Request
-Bob --> Alice: Authentication Response
-
-Alice -> Bob: Another authentication Request
-Alice <-- Bob: another authentication Response
+autonumber
+Client -> Server: Authentication Request
+Server --> Client: Authentication Response
+... One moment later...
+Client -> Server: Another authentication Request
+Client <-- Server: another authentication Response
 @enduml
 ....
 
@@ -55,62 +58,39 @@ This document was prepared by the Ribose Committee _{technical-committee}_.
 
 == Introduction
 
-=== User requirements:
+This Standard provides a framework for performing technical vulnerability
+assessments on information systems. The performance of technical vulnerability
+assessments is an integral part of technical vulnerability management,
+described across the Information Security Management System (ISMS) family of
+standards, and especially for vulnerability management.
 
-. U1: batch requests should not have degraded performance
-. U2: the same scheme should work in both browser & native mobile app (i.e. without "session")
+Specifically, this document describes the necessary steps to plan, execute and
+report on technical vulnerability assessments while ensuring legal and policy
+considerations are addressed. It also describes the process of identifying,
+analyzing and evaluating technical vulnerabilities of information systems within the
+scope of a technical vulnerability assessment.
 
-=== Security requirements:
+The output of technical vulnerability assessments may be used as input for other
+security-related activities such as vulnerability management, risk assessments
+(specifically, risk identification and risk evaluation) or penetration testing.
 
-Assumptions
+Technical vulnerability assessments can be considered as input to risk assessment and is
+different in nature to a risk assessment. As technical vulnerability assessments are
+performed on information systems, its output does not necessarily implicate
+risk at the organizational level.
 
-. A1: user authentication implemented using username + password
+A technical vulnerability assessment report may describe technical vulnerabilities identified on
+information systems, but not all technical vulnerabilities necessarily affect the risk
+profile of an organization. For example, if a vulnerable information system
+does not hold confidential data or is not connected to the corporate network.
 
-General
-
-. S1: CSRF protection during pre-login (unauthenticated) & post-login (authenticated)
-. S2: Sessions with expiration (e.g. 7 days)
-. S3: Client: if needed, can store whatever tokens in cookie / local storage
-. S4: Server: if needed, can store whatever tokens in DB
-
-Technical
-
-. S5: "forward validity" of CSRF token
-.. Getting hold of an old CSRF token would have minimal impact on the attacker's ability to forge subsequent requests
-
-TODO:
-- define: user, client, session, token, validity
-: from ietf / iso source (prefer iso?)
-- define: time block: in 8601, has timescale/time interval concept. link?  
-  need to define/include begin-end?
-- specify time granularity
-- specify how to sync time between client & server?
-	- 1) ask client to enter the next otp
-	  2) if opt valid, store it in DB along with User / client
-	  3) calculate time block difference between stored otp and current server time block.
-	  4) store this time block difference in DB along with User / client
-	  5) Next time client presents an otp, server can use this time block difference as a window.
-	- need to assume that the client doesn't have a purposefully set wrong 
-	  time (e.g. several years apart)?
-	  - Maybe not. We can just set a small enough window e.g. 10 days in which to 
-	    search.
-- specify what to do when times drift: irrelevant.
-- mark as concern: certain ranges of values (params) might cause problems
-  e.g. validity time window, expiry
-  More like UX problems.  Obviously not too short e.g. 1 sec.
-- define: diff kinds of expiry
-  - A: OTP seed expiration.
-- How to handle batch requests?
-- flow diagrams for every single flow
-- specify how to encrypt
-  e.g. fixed-length vs var-length.
-  e.g. ffxcodec has more variable length ciphertext
-- low vs high latency (e.g. LAN vs satellite)
-- 
+This International Standard is intended for the following audiences:
 
 == Scope
 
-
+shorter version of intro: as a way to prevent CSRF + token-based session authentication mechanism
+works with SPA / ajax / API endpoints
+only stores state on server side once authenticated.  No storage required before logging in.
 
 [bibliography]
 == Normative references
@@ -125,6 +105,30 @@ This document does not contain any normative references.
 ==== user
 
 person that utilizes a service
+
+==== client
+
+a device controlled by a user
+
+==== session
+
+duration of a client's activity with the server
+
+==== token
+
+TODO
+
+==== valid token
+
+TODO
+
+==== invalid token
+
+TODO
+
+==== time block
+
+TODO
 
 ==== forward secrecy
 
@@ -159,10 +163,87 @@ stem:[BCD(K, m)]::
   Symmetric decryption, through the blockcipher stem:[BC], of the message
   stem:[m] using the key stem:[K].
 
+A + B::
+  Structured concatenation of `A` and `B` where `A`, `B` are structured data, e.g. merging of a JSON hash
+
+== Goals
+
+=== User requirements
+
+[[req-pipeline]]
+==== Performance of pipeline requests
+
+pipeline requests should not have degraded performance
+TODO define pipeline requests
+TODO diagram of batch requests & sparse requests
+
+[[req-sessionless]]
+==== Protection with and without sessions
+
+the same scheme should work in both browser & native mobile app (i.e. without "session")
+
+
+=== Assumptions
+
+[[ass-auth]]
+==== Authentication method
+user authentication implemented using username + password
+
+=== Security requirements
+
+[[req-pre-post]]
+==== Protection duration
+CSRF protection during pre-login (unauthenticated) & post-login (authenticated)
+
+[[req-expiration]]
+==== Session expiration
+Sessions with expiration (e.g. 7 days)
+
+[[req-client-state]]
+==== Client state
+If needed, the client can store whatever tokens in cookie / local storage
+
+[[req-server-state]]
+==== Server state
+If needed, the server can store whatever tokens in DB
+
+[[req-forge-from-old]]
+==== Forging subsequent requests
+Getting hold of an old CSRF token would have minimal impact on the attacker's ability to forge subsequent requests
+
+TODO:
+- define: time block: in 8601, has timescale/time interval concept. link?  
+  need to define/include begin-end?
+- specify time granularity
+- specify how to sync time between client & server?
+	- 1) ask client to enter the next otp
+	  2) if opt valid, store it in DB along with User / client
+	  3) calculate time block difference between stored otp and current server time block.
+	  4) store this time block difference in DB along with User / client
+	  5) Next time client presents an otp, server can use this time block difference as a window.
+	- need to assume that the client doesn't have a purposefully set wrong 
+	  time (e.g. several years apart)?
+	  - Maybe not. We can just set a small enough window e.g. 10 days in which to 
+	    search.
+- specify what to do when times drift: irrelevant.
+- mark as concern: certain ranges of values (params) might cause problems
+  e.g. validity time window, expiry
+  More like UX problems.  Obviously not too short e.g. 1 sec.
+- define: diff kinds of expiry
+  - A: OTP seed expiration.
+- How to handle batch requests?
+- flow diagrams for every single flow
+- specify how to encrypt
+  e.g. fixed-length vs var-length.
+  e.g. ffxcodec has more variable length ciphertext
+- low vs high latency (e.g. LAN vs satellite)
+- 
+
+
+
 
 == Example flow
 
-* + : can be a structured concatenation, e.g. merging of a JSON hash
 
 === token generation
 
