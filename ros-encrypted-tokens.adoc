@@ -58,33 +58,14 @@ This document was prepared by the Ribose Committee _{technical-committee}_.
 
 == Introduction
 
-This Standard provides a framework for performing technical vulnerability
-assessments on information systems. The performance of technical vulnerability
-assessments is an integral part of technical vulnerability management,
-described across the Information Security Management System (ISMS) family of
-standards, and especially for vulnerability management.
+This Standard provides a specification for performing token-based authentication.
 
-Specifically, this document describes the necessary steps to plan, execute and
-report on technical vulnerability assessments while ensuring legal and policy
-considerations are addressed. It also describes the process of identifying,
-analyzing and evaluating technical vulnerabilities of information systems within the
-scope of a technical vulnerability assessment.
 
-The output of technical vulnerability assessments may be used as input for other
-security-related activities such as vulnerability management, risk assessments
-(specifically, risk identification and risk evaluation) or penetration testing.
+Specifically, this document describes the necessary steps to perform 
+authentication via token generation, exchange, and validation.
+It also describes the process of identifying,
+analyzing and evaluating the security implications of the different scenarios that are relevant to the shaping of the protocol presented by this document.
 
-Technical vulnerability assessments can be considered as input to risk assessment and is
-different in nature to a risk assessment. As technical vulnerability assessments are
-performed on information systems, its output does not necessarily implicate
-risk at the organizational level.
-
-A technical vulnerability assessment report may describe technical vulnerabilities identified on
-information systems, but not all technical vulnerabilities necessarily affect the risk
-profile of an organization. For example, if a vulnerable information system
-does not hold confidential data or is not connected to the corporate network.
-
-This International Standard is intended for the following audiences:
 
 == Scope
 
@@ -95,41 +76,73 @@ only stores state on server side once authenticated.  No storage required before
 [bibliography]
 == Normative references
 
-This document does not contain any normative references.
+* [[[ISO8601,ISO 8601]]], _DATA ELEMENTS AND INTERCHANGE FORMATS -- Information interchange -- Representation of dates and times_
+
+* [[[ISO27000,ISO/IEC 27000]]], _Information technology -- Security techniques -- Information security management systems -- Overview and vocabulary_
+
+* [[[ISO27001,ISO/IEC 27001]]], _Information technology -- Security techniques -- Information security management systems -- Requirements_
+
+* [[[ISO31000,ISO 31000]]], _Risk management -- Guidelines_
+
+* [[[ISOGuide73,ISO Guide 73:2009]]], _Risk management -- Vocabulary_
+
 
 
 == Terms, definitions, symbols and abbreviated terms
 
 === Terms and definitions
 
+[[term-user]]
 ==== user
 
 person that utilizes a service
 
+[[term-client]]
 ==== client
 
 a device controlled by a user
 
+[[term-session]]
 ==== session
 
 duration of a client's activity with the server
 
+[[term-token]]
 ==== token
 
-TODO
+message consisting of data fields relevant to a particular communication and which contains information that has been produced using a cryptographic technique
+
+[.source]
+<<ISO9798,clause 2.27>>
 
 ==== valid token
 
 TODO
+a token that is accepted by the underlying protocol to use as a
 
 ==== invalid token
 
 TODO
 
-==== time block
+==== token validity
 
 TODO
 
+[[term-time-block]]
+==== time block
+
+a time interval with a duration pre-determined by the system, and aligned to pre-determined time instants
+
+[[term-time-interval]]
+==== time interval
+
+part of the time axis limited by two instants
+
+[.source]
+<<ISO8601,clause 2.1.3>>
+
+
+[[term-forward-secrecy]]
 ==== forward secrecy
 
 method such that user of revoked access is unable to access data
@@ -138,6 +151,7 @@ created after access revocation
 NOTE: https://tools.ietf.org/html/rfc7525#section-6.3
 
 
+[[term-blockcipher]]
 ==== blockcipher
 
 encryption algorithm that encrypts a plaintext into an equivalent
@@ -163,10 +177,13 @@ stem:[BCD(K, m)]::
   Symmetric decryption, through the blockcipher stem:[BC], of the message
   stem:[m] using the key stem:[K].
 
-A + B::
+stem:[A oplus B]::
   Structured concatenation of `A` and `B` where `A`, `B` are structured data, e.g. merging of a JSON hash
 
 == Goals
+
+TODO: describe csrf (the attack)
+TODO: describe token authentication in general
 
 === User requirements
 
@@ -212,7 +229,6 @@ If needed, the server can store whatever tokens in DB
 Getting hold of an old CSRF token would have minimal impact on the attacker's ability to forge subsequent requests
 
 TODO:
-- define: time block: in 8601, has timescale/time interval concept. link?  
   need to define/include begin-end?
 - specify time granularity
 - specify how to sync time between client & server?
