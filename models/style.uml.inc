@@ -35,4 +35,4 @@ skinparam Entity {
 
 @enduml
 
-/' vim:set ft=plantuml '/
+/' vim:set ft=plantuml: '/
